@@ -20,13 +20,13 @@ os.environ['AWS_SESSION_TOKEN'] = aws['S3_session_token']
 
 s3 = sh.aws.bake('s3')
 s3_uri = "s3://{}/{}/".format(aws['bucket'], aws['prefix'])
-print(s3("ls", s3_uri))
+# print(s3("ls", s3_uri))
 
 all_folders = s3("ls", s3_uri).stdout
-all_folders = regex.findall(regex.escape(args.prefix) + r'[^ ]{}'.format(16), str(all_folders))
+all_folders = regex.findall(regex.escape(args.prefix) + r'[^ ]{16}', str(all_folders))
 print(all_folders)
 print(len(all_folders))
 os.makedirs(args.output, exist_ok=True)
 for folder in all_folders:
     print(folder)
-    # print(s3.sync(s3_uri + folder, args.output + folder))
+    print(s3.sync(s3_uri + folder, args.output + folder))
