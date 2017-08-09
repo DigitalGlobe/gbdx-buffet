@@ -18,8 +18,8 @@ workflow_api = WorkflowAPI()
 parser = get_parser()
 args = parser.parse_args()
 
-UNDELIVERED = 'UND' if args.catfile is None else args.catfile + "UND"
-DELIVERED = 'DELIV' if args.catfile is None else args.catfile + "DELIV"
+UNDELIVERED = 'UND' if args.file is None else args.file + "UND"
+DELIVERED = 'DELIV' if args.file is None else args.file + "DELIV"
 
 
 def launch_workflow(location, cat_id):
@@ -38,8 +38,9 @@ def launch_workflow(location, cat_id):
 
     output = aop.outputs.data
     if args.wkt:
-        tasks.append(Task('rasterclip_extents', data=tasks[-1].outputs.data.value, wkt=args.wkt))
-        output = tasks[-1].s3_location.data
+        tasks.append(Task('RasterClip_Extents', raster=tasks[-1].outputs.data.value, wkt=args.wkt))
+        print(tasks[-1])
+        output = tasks[-1].outputs.data
     w = Workflow(tasks)
     today, _ = datetime.now().isoformat().split('T')
     w.savedata(output, location=os.path.join(today, cat_id))
@@ -49,25 +50,26 @@ def launch_workflow(location, cat_id):
 
 def main():
     workflows = []
-    if args.shapefile:
-        if 'CATALOGID' not in args.shapefile.columns:
+    if args.shape:
+        if 'CATALOGID' not in args.shape.columns:
             raise Exception("CATALOGID not in shapefile")
         else:
             catalog_ids = list(args.shapefile.CATALOGID)
     elif args.catids:
         catalog_ids = args.catids
-    elif args.catfile:
+    elif args.file:
         try:
-            with open(args.catfile + 'UND') as f:
+            with open(args.file + 'UND') as f:
                 catalog_ids = [s.strip('\n') for s in f.readlines()]
         except FileNotFoundError:
-            with open(args.catfile) as f:
+            with open(args.file) as f:
                 catalog_ids = [s.strip('\n') for s in f.readlines()]
     else:
-        raise Exception("Choose --shapefile or --catids or --catfile")
+        raise Exception("Choose --shape or --catids or --file")
 
     orders = gbdx.ordering.location(catalog_ids)
-    delivered = [o + "\n" for o in orders['acquisitions'] if o['state'] == 'delivered']
+    print(orders)
+    delivered = [o for o in orders['acquisitions'] if o['state'] == 'delivered']
 
     with open(DELIVERED, 'w') as f:
         for o in delivered:
