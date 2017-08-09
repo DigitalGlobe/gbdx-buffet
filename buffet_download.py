@@ -9,6 +9,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("prefix", help="Prefix of folder to be read")
 parser.add_argument("output", help="Location of export folder")
+parser.add_argument("--dryrun", help="Don't download, just list what will be downloaded", action='store_true')
 args = parser.parse_args()
 
 gbdx = Interface()
@@ -26,7 +27,8 @@ all_folders = s3("ls", s3_uri).stdout
 all_folders = regex.findall(regex.escape(args.prefix) + r'[^ ]{16}', str(all_folders))
 print(all_folders)
 print(len(all_folders))
-os.makedirs(args.output, exist_ok=True)
-for folder in all_folders:
-    print(folder)
-    print(s3.sync(s3_uri + folder, args.output + folder))
+if not args.dryrun:
+    os.makedirs(args.output, exist_ok=True)
+    for folder in all_folders:
+        print(folder)
+        print(s3.sync(s3_uri + folder, args.output + folder))
