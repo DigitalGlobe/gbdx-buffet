@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("prefix", help="Prefix of folder to be read")
 parser.add_argument("output", help="Location of export folder")
 parser.add_argument("--dryrun", help="Don't download, just list what will be downloaded", action='store_true')
+parser.add_argument("--verbose", help="verbose", action='store_true')
 args = parser.parse_args()
 
 gbdx = Interface()
@@ -24,7 +25,9 @@ s3_uri = "s3://{}/{}/".format(aws['bucket'], aws['prefix'])
 # print(s3("ls", s3_uri))
 
 all_folders = s3("ls", s3_uri).stdout
-all_folders = regex.findall(regex.escape(args.prefix) + r'[^ ]{16}', str(all_folders))
+if args.verbose:
+    print(all_folders)
+all_folders = regex.findall(regex.escape(args.prefix) + r'[^ ]*/', str(all_folders))
 print(all_folders)
 print(len(all_folders))
 if not args.dryrun:
