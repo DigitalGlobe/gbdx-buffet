@@ -41,9 +41,9 @@ def main():
         if 'CATALOGID' in args.shapefile.columns:
             catalog_ids = list(args.shapefile.CATALOGID.values)
         elif 'cat_id' in args.shapefile.columns:
-            catalog_ids = list(args.shapefile.CATALOGID.values)
+            catalog_ids = list(args.shapefile.cat_id.values)
         elif 'catid' in args.shapefile.columns:
-            catalog_ids = list(args.shapefile.CATALOGID.values)
+            catalog_ids = list(args.shapefile.catid.values)
         else:
             raise Exception("CATALOGID not in shapefile")
     elif args.catids:
