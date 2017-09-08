@@ -15,13 +15,13 @@ gbdx = Interface()
 
 workflow_api = WorkflowAPI()
 
+
 def geofile(file_name):
     assert os.path.exists(file_name), "File not found: %s"%file_name
     return gpd.read_file(file_name)
 
 
 def main():
-
     parser = argparse.ArgumentParser(description="""Launch a workflow to order images from GBDX""")
     parser.add_argument("-i", "--catids", help="Comma list of CATALOG IDS to be read (10400100175E5C00,104A0100159AFE00,"
                                          "104001002A779400,1040010026627600)", type=lambda s: s.split(','))
@@ -68,7 +68,7 @@ def main():
 
     with open(DELIVERED, 'w') as f:
         for o in delivered:
-            w = launch_workflow(o['location'], o['acquisition_id'], args.name, args.pansharpen, args.wkt, args.dra)
+            w = launch_workflow(o['acquisition_id'], args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
             print(w.id, w.definition, w.status)
             workflows.append(w)
             f.write(o['acquisition_id'])
@@ -78,7 +78,7 @@ def main():
         f.writelines(undelivered)
 
 
-def launch_workflow(location, cat_id, name, pansharpen=True, wkt=None, dra=True):
+def launch_workflow(cat_id, name, pansharpen=True, dra=True, wkt=None):
     order = gbdx.Task("Auto_Ordering", cat_id=cat_id)
     order.impersonation_allowed = True
 
