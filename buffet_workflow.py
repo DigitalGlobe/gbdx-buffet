@@ -21,14 +21,16 @@ def geofile(file_name):
 
 
 def main():
+
     parser = argparse.ArgumentParser(description="""Launch a workflow to order images from GBDX""")
     parser.add_argument("-i", "--catids", help="Comma list of CATALOG IDS to be read (10400100175E5C00,104A0100159AFE00,"
                                          "104001002A779400,1040010026627600)", type=lambda s: s.split(','))
-    parser.add_argument("-f", "--file", help="File to be read, catid per line (10400100175E5C00,104A0100159AFE00,"
-                                          "104001002A779400,1040010026627600)")
+    parser.add_argument("-f", "--file", help="File to be read, catid per line (10400100175E5C00\\n104A0100159AFE00\\n"
+                                          "104001002A779400\\n1040010026627600)")
     parser.add_argument("-s", "--shapefile", help="Name of shapefile to be read", type=geofile)
-    parser.add_argument("-w", "--wkt", help="WKT indicating where to clip images", default="")
+    parser.add_argument("-w", "--wkt", help="WKT indicating where to clip images e.g. POLYGON ((109.79359281016 18.3095645755021, ....))", default="")
     parser.add_argument("-p", "--pansharpen", help="Enable 4band pansharpening", action='store_true')
+    parser.add_argument("-d", "--dra", help="Enable dynamic range adjustment (DRA)", action='store_true')
     parser.add_argument("-n", "--name", help="Name the directory to save images on S3", type=str, default=datetime.now().isoformat().split('T')[0])
     args = parser.parse_args()
 
@@ -66,7 +68,7 @@ def main():
 
     with open(DELIVERED, 'w') as f:
         for o in delivered:
-            w = launch_workflow(o['location'], o['acquisition_id'], args.pansharpen, args.wkt)
+            w = launch_workflow(o['location'], o['acquisition_id'], args.name, args.pansharpen, args.wkt, args.dra)
             print(w.id, w.definition, w.status)
             workflows.append(w)
             f.write(o['acquisition_id'])
@@ -76,7 +78,7 @@ def main():
         f.writelines(undelivered)
 
 
-def launch_workflow(location, cat_id, pansharpen, wkt, name):
+def launch_workflow(location, cat_id, name, pansharpen=True, wkt=None, dra=True):
     order = gbdx.Task("Auto_Ordering", cat_id=cat_id)
     order.impersonation_allowed = True
 
@@ -84,7 +86,7 @@ def launch_workflow(location, cat_id, pansharpen, wkt, name):
                     data=order.outputs.s3_location.value,
                     enable_pansharpen=pansharpen,
                     enable_acomp=True,
-                    enable_dra=False,
+                    enable_dra=dra,
                     # ortho_epsg='EPSG:4326'
                     )
 
