@@ -34,7 +34,6 @@ def main():
     parser.add_argument("-n", "--name", help="Name the directory to save images on S3", type=str, default=datetime.now().isoformat().split('T')[0])
     args = parser.parse_args()
 
-    UNDELIVERED = 'UND' if args.file is None else args.file + "UND"
     DELIVERED = 'DELIV' if args.file is None else args.file + "DELIV"
 
     workflows = []
@@ -64,18 +63,13 @@ def main():
 
     orders = gbdx.ordering.location(catalog_ids)
     print(orders)
-    delivered = [o for o in orders['acquisitions'] if o['state'] == 'delivered']
 
     with open(DELIVERED, 'w') as f:
         for o in orders['acquisitions']:
             w = launch_workflow(o['acquisition_id'], args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
             print(w.id, w.definition, w.status)
             workflows.append(w)
-            f.write(o['acquisition_id'])
-
-    undelivered = [o['acquisition_id'] + '\n' for o in orders['acquisitions'] if o['state'] != 'delivered']
-    with open(UNDELIVERED, 'w') as f:
-        f.writelines(undelivered)
+            f.write(o['acquisition_id'] + '/n')
 
 
 def launch_workflow(cat_id, name, pansharpen=True, dra=True, wkt=None):
