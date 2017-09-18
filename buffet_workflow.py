@@ -67,7 +67,7 @@ def main():
     delivered = [o for o in orders['acquisitions'] if o['state'] == 'delivered']
 
     with open(DELIVERED, 'w') as f:
-        for o in delivered:
+        for o in orders['acquisitions']:
             w = launch_workflow(o['acquisition_id'], args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
             print(w.id, w.definition, w.status)
             workflows.append(w)
