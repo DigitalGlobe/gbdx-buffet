@@ -1,10 +1,5 @@
-from logging import getLogger
-
 from gbdxtools import Interface
 from gbdxtools.workflow import Workflow as WorkflowAPI
-
-log = getLogger()
-log.setLevel('DEBUG')
 
 gbdx = Interface()
 
@@ -16,6 +11,7 @@ def main():
 
     for w in resp.json()['Workflows']:
         print(workflow_api.get(w))
+
 
 if __name__ == '__main__':
     main()
