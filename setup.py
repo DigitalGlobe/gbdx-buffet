@@ -13,8 +13,8 @@ setup(
     python_requires='>=3',
     entry_points={
         'console_scripts': [
-            'buffet-dl=gbdx_buffet:download',
-            'buffet-order=gbdx_buffet:workflow',
+            'buffet-dl=gbdx_buffet:download_cli',
+            'buffet-order=gbdx_buffet:workflow_cli',
         ],
     },
 )

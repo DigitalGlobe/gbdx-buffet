@@ -10,7 +10,7 @@ from gbdxtools.simpleworkflows import Task, Workflow
 from gbdxtools.workflow import Workflow as WorkflowAPI
 
 
-def download():
+def download_cli():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("prefix", help="Prefix of folder to be read")
@@ -18,7 +18,10 @@ def download():
     parser.add_argument("--dryrun", help="Don't download, just list what will be downloaded", action='store_true')
     parser.add_argument("--verbose", help="verbose", action='store_true')
     args = parser.parse_args()
+    download(prefix=args.prefix, output=args.output, verbose=args.verbose, dryrun=args.dryrun)
 
+
+def download(prefix, output, verbose=False, dryrun=False):
     try_again = True
     gbdx = Interface()
     while try_again:
@@ -32,16 +35,16 @@ def download():
             s3_uri = "s3://{}/{}/".format(aws['bucket'], aws['prefix'])
 
             all_folders = s3("ls", s3_uri).stdout
-            if args.verbose:
+            if verbose:
                 print(all_folders)
-            all_folders = regex.findall(regex.escape(args.prefix) + r'[^ ]*/', str(all_folders))
+            all_folders = regex.findall(regex.escape(prefix) + r'[^ ]*/', str(all_folders))
             print(all_folders)
             print(len(all_folders))
-            if not args.dryrun:
-                os.makedirs(args.output, exist_ok=True)
+            if not dryrun:
+                os.makedirs(output, exist_ok=True)
                 for folder in all_folders:
                     print(folder)
-                    print(s3.sync(s3_uri + folder, args.output + folder))
+                    print(s3.sync(s3_uri + folder, output + folder))
             try_again = False
         except:
             continue
@@ -53,7 +56,7 @@ def geofile(file_name):
     return gpd.read_file(file_name)
 
 
-def workflow():
+def workflow_cli():
     parser = argparse.ArgumentParser(description="""Launch a workflow to order images from GBDX""")
     parser.add_argument("-i", "--catids", help="Comma list of CATALOG IDS to be read "
                                                "(10400100175E5C00,104A0100159AFE00,"
@@ -94,16 +97,20 @@ def workflow():
     else:
         raise Exception("You must provide catalog ids using --shapefile or --catids or --file")
 
+    workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
+
+
+def workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, wkt=None):
     print("Catalog IDs ", catalog_ids)
     orders = gbdx.ordering.location(catalog_ids)
     print(orders)
 
     for o in orders['acquisitions']:
-        w = launch_workflow(o['acquisition_id'], args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
+        w = launch_workflow(o['acquisition_id'], name, pansharpen=pansharpen, dra=dra, wkt=wkt)
         print(w.id, w.definition, w.status)
 
 
-def launch_workflow(cat_id, name, pansharpen=True, dra=True, wkt=None):
+def launch_workflow(cat_id, name, pansharpen=False, dra=False, wkt=None):
     order = gbdx.Task("Auto_Ordering", cat_id=cat_id)
     order.impersonation_allowed = True
 
