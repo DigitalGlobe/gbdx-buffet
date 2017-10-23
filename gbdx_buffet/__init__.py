@@ -10,6 +10,11 @@ from gbdxtools.simpleworkflows import Task, Workflow
 from gbdxtools.workflow import Workflow as WorkflowAPI
 
 
+gbdx = Interface()
+workflow_api = WorkflowAPI()
+log = getLogger()
+
+
 def download_cli():
     parser = argparse.ArgumentParser()
 
@@ -97,10 +102,10 @@ def workflow_cli():
     else:
         raise Exception("You must provide catalog ids using --shapefile or --catids or --file")
 
-    workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
+    launch_workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
 
 
-def workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, wkt=None):
+def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, wkt=None):
     print("Catalog IDs ", catalog_ids)
     orders = gbdx.ordering.location(catalog_ids)
     print(orders)
@@ -132,8 +137,3 @@ def launch_workflow(cat_id, name, pansharpen=False, dra=False, wkt=None):
     w.savedata(output, location=os.path.join(name, cat_id))
     w.execute()
     return w
-
-
-gbdx = Interface()
-workflow_api = WorkflowAPI()
-log = getLogger()
