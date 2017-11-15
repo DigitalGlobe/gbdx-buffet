@@ -240,7 +240,7 @@ def fetch_results_cli():
 
     parser.add_argument("-it", "--itemType",
                         default="all",
-                        help="Name of object type, options: all, Airliner, Passenger Cars, Fighter Aircraft, etc.",
+                        help="Name of object type, options: all, Airliner, Passenger Cars, Aircraft, etc.",
                         type=str)
 
     parser.add_argument("-std", "--startDate",
