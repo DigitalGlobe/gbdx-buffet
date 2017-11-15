@@ -15,6 +15,7 @@ setup(
         'console_scripts': [
             'buffet-dl=gbdx_buffet:download_cli',
             'buffet-order=gbdx_buffet:workflow_cli',
+            'buffet-results=gbdx_buffet:fetch_results_cli',
         ],
     },
 )
