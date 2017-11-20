@@ -62,7 +62,8 @@ def download(prefix, output, verbose=False, dryrun=False):
                     print(folder)
                     print(s3.sync(s3_uri + folder, output + folder))
             try_again = False
-        except:
+        except Exception as e:
+            print(e)
             continue
 
 
