@@ -60,7 +60,8 @@ def download(prefix, output, verbose=False, dryrun=False):
                 os.makedirs(output, exist_ok=True)
                 for folder in all_folders:
                     print(folder)
-                    print(s3.sync(s3_uri + folder, output + folder))
+                    print(s3.ls(folder, " --recursive --human-readable --summarize"))
+                    print(s3.sync(s3_uri + folder, output + folder, '--progress', _err_to_out=True, _out_bufsize=100))
             try_again = False
         except Exception as e:
             print(e)
