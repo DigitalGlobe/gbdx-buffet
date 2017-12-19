@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime
 from logging import getLogger
+from pprint import pprint
 
 import fiona
 import regex
@@ -151,6 +152,16 @@ def launch_workflow(cat_id, name, pansharpen=False, dra=False, wkt=None):
     w.execute()
     return w
 
+
+def check_workflow_cli():
+    parser = argparse.ArgumentParser(description="""Launch a workflow to order images from GBDX""")
+    parser.add_argument("workflow_ids", help="Comma list of Worflow IDS to be read "
+                                               "(4756293649288340653,4756293656541265420,"
+                                               "4756293664199537883)", type=lambda s: s.split(','))
+    args = parser.parse_args()
+
+    for wid in args.workflow_ids:
+        pprint(gbdx.workflow.get(wid))
 
 class FetchGBDxResults:
 
