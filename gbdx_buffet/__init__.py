@@ -158,10 +158,14 @@ def check_workflow_cli():
     parser.add_argument("workflow_ids", help="Comma list of Worflow IDS to be read "
                                                "(4756293649288340653,4756293656541265420,"
                                                "4756293664199537883)", type=lambda s: s.split(','))
+    parser.add_argument("-v","--verbose", help="verbose, otherwise just get state", action='store_true')
     args = parser.parse_args()
 
     for wid in args.workflow_ids:
-        pprint(gbdx.workflow.get(wid))
+        if args.verbose:
+            pprint(gbdx.workflow.get(wid))
+        else:
+            pprint(gbdx.workflow.get(wid)['state'])
 
 class FetchGBDxResults:
 

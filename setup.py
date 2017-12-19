@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='gbdx-buffet',
-    version='2017.12.19.0',
+    version='2017.12.19.1',
     description='A package to simplify basic AOP based GBDX ordering through a Python CLI',
     url='https://github.com/digitalglobe/gbdx-buffet',
     author='Mahmoud Lababidi',
@@ -16,7 +16,7 @@ setup(
             'buffet-dl=gbdx_buffet:download_cli',
             'buffet-order=gbdx_buffet:workflow_cli',
             'buffet-results=gbdx_buffet:fetch_results_cli',
-            'buffet_status=gbdx_buffet:check_workflow_cli',
+            'buffet-status=gbdx_buffet:check_workflow_cli',
         ],
     },
 )
