@@ -54,6 +54,7 @@ def download(prefix, output, verbose=False, dryrun=False):
             all_folders = s3("ls", s3_uri).stdout
             if verbose:
                 print(all_folders)
+                print(aws)
             all_folders = regex.findall(regex.escape(prefix) + r'[^ ]*/', str(all_folders))
             print(all_folders)
             print(len(all_folders))
