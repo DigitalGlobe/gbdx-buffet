@@ -8,6 +8,7 @@ from pprint import pprint
 import fiona
 import regex
 import sh
+import pandas as pd
 from gbdxtools import Interface
 from gbdxtools.simpleworkflows import Task, Workflow
 from gbdxtools.workflow import Workflow as WorkflowAPI
@@ -25,6 +26,16 @@ except Exception:
           """file here: https://github.com/tdg-platform/gbdx-auth#ini-file.)""")
 workflow_api = WorkflowAPI()
 log = getLogger()
+
+
+def save_list(l, fname, mode='w'):
+    with open('/pipeline/{}.txt'.format(fname), mode) as f:
+        f.writelines("{}\n".format(item) for item in l)
+
+
+def read_list(fname):
+    with open('/pipeline/{}.txt'.format(fname)) as f:
+        return [line.strip('/n') for line in f.readlines()]
 
 
 def download_cli():
@@ -67,6 +78,54 @@ def download(prefix, output, verbose=False, dryrun=False):
         except Exception as e:
             print(e)
             continue
+
+class ProgressPercentage(object):
+    def __init__(self, filename, size):
+        self.filename = filename
+        self.size = size
+        self.total = 0
+        self.f = open(self.filename, 'w')
+
+    def __call__(self, bytes_amount):
+        # To simplify we'll assume this is hooked up
+        # to a single filename.
+        self.total += bytes_amount
+
+        # with open(self.filename, 'w') as f:
+        if not self.f.closed:
+            self.f.seek(0)
+            self.f.write('{}'.format((self.total * 100) // self.size))
+            self.f.flush()
+
+        if self.total == self.size:
+            self.f.close()
+
+
+def download2(prefix, output, verbose=False, dryrun=False):
+    gbdx = Interface()
+    aws = gbdx.s3._load_info()
+    os.environ['AWS_ACCESS_KEY_ID'] = aws['S3_access_key']
+    os.environ['AWS_SECRET_ACCESS_KEY'] = aws['S3_secret_key']
+    os.environ['AWS_SESSION_TOKEN'] = aws['S3_session_token']
+    import boto3
+    prefix = [aws['prefix']] +prefix
+    prefix = os.path.join(*prefix)
+    from boto3.s3.transfer import S3Transfer
+    transfer = S3Transfer(boto3.client('s3'))
+    bucket = boto3.resource('s3').Bucket(aws['bucket'])
+    for objects in bucket.objects.filter(Prefix=prefix).pages():
+        for obj in objects:
+            if obj.key.lower().endswith('tif'):
+                catid = regex.search(r'(?<=\/pipeline\/)([0-9\-a-z]+)(?=\/)', obj.key)[0]
+                transfer.download_file(aws['bucket'], obj.key, '/pipeline/data/{}.tif'.format(catid),
+                                       callback=ProgressPercentage('/pipeline/download/{}'.format(catid), obj.size))
+
+                bucket.download_file(obj.key, '/pipeline/data/{}.tif'.format(catid),
+                                     callbacks=ProgressPercentage('/pipeline/download/{}'.format(catid), obj.size))
+            elif obj.key.lower().endswith('imd'):
+                catid = regex.search(r'(?<=\/pipeline\/)([0-9\-a-z]+)(?=\/)', obj.key)[0]
+                bucket.download_file(obj.key, '/pipeline/data/{}.imd'.format(catid))
+
 
 
 def geofile(file_name):
@@ -123,10 +182,13 @@ def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0],
     print("Catalog IDs ", catalog_ids)
     orders = gbdx.ordering.location(catalog_ids)
     print(orders)
+    workflows = []
 
     for o in orders['acquisitions']:
         w = launch_workflow(o['acquisition_id'], name, pansharpen=pansharpen, dra=dra, wkt=wkt)
         print(w.id, w.definition, w.status)
+        workflows.append(w)
+    return workflows
 
 
 def launch_workflow(cat_id, name, pansharpen=False, dra=False, wkt=None):
@@ -166,6 +228,57 @@ def check_workflow_cli():
             pprint(gbdx.workflow.get(wid))
         else:
             pprint(gbdx.workflow.get(wid)['state'])
+
+
+def search(wkt):
+    catalog_ids = []
+    results = gbdx.catalog.search(searchAreaWkt=wkt)
+    for result in results['results']:
+        p = result['properties']
+        if p['platformName'].endswith('03') or p['platformName'].endswith('04'):
+            cid = p['catalogID']
+            catalog_ids.append(cid)
+    return catalog_ids
+
+
+def area2image(wkts):
+    return set([item for aoi in wkts for group in search(aoi) for item in group])
+
+
+def pipeline_order():
+    # parser = argparse.ArgumentParser(description="""Launch a workflow to order images from GBDX""")
+    # parser.add_argument()
+
+    # Find new images to order via gbdx AOI/wkt query
+    images = pd.read_csv('/pipeline/images.csv')
+    areas = pd.read_csv('/pipeline/areas.csv')
+    new_images = area2image(areas[areas.ordered == 0].wkt).difference(images.id)
+
+    # Order and workflow imagery
+    workflows = launch_workflows(new_images, 'pipeline', pansharpen=True, dra=True)
+
+    # Update state and save to csv
+    areas.ordered = 1
+    new_images = [{'id': im, 'wid':w.id, 'status':1} for w, im in zip(workflows, new_images)]
+    images = pd.concat([images, new_images], axis=1, ignore_index=True)
+
+    # Save state
+    images.to_csv('/pipeline/images.csv'), areas.to_csv('/pipeline/areas.csv')
+
+
+def check_if_workflow_isdone_and_then_download():
+    images = pd.read_csv('/pipeline/images.csv')
+    running_images = images[images.status==1]
+    for image in running_images.itertuples():
+        workflow = gbdx.workflow.get(image.wid)
+        if workflow['state']['event'] == 'succeeded':
+            # Kick off download
+            download2(['pipeline', image.id], ['pipeline', 'images'])
+
+    inprogress = read_list('inprogress')
+
+
+
 
 class FetchGBDxResults:
 
