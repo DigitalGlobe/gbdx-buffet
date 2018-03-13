@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='gbdx-buffet',
-    version='2017.12.19.1',
+    version='2018.03.13.0',
     description='A package to simplify basic AOP based GBDX ordering through a Python CLI',
     url='https://github.com/digitalglobe/gbdx-buffet',
     author='Mahmoud Lababidi',
