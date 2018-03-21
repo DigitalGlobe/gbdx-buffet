@@ -96,13 +96,19 @@ def workflow_cli():
     if args.shapefile:
         print("Reading cat ids from shapefile")
         if 'CATALOGID' in args.shapefile.columns:
-            catalog_ids = list(args.shapefile.CATALOGID.values)
+            args.shapefile.rename(columns={'CATALOGID': 'cat_id'}, inplace=True)
         elif 'cat_id' in args.shapefile.columns:
-            catalog_ids = list(args.shapefile.cat_id.values)
+            pass
         elif 'catid' in args.shapefile.columns:
-            catalog_ids = list(args.shapefile.catid.values)
+            args.shapefile.rename(columns={'catid': 'cat_id'}, inplace=True)
+        elif 'image_id' in args.shapefile.columns:
+            args.shapefile.rename(columns={'image': 'cat_id'}, inplace=True)
         else:
             raise Exception("CATALOGID not in shapefile")
+
+        launch_shapefile_workflows(args.shapefile, args.name, pansharpen=args.pansharpen, dra=args.dra)
+        return
+
     elif args.catids:
         print("Reading cat ids from command line")
         catalog_ids = args.catids
@@ -118,6 +124,15 @@ def workflow_cli():
         raise Exception("You must provide catalog ids using --shapefile or --catids or --file")
 
     launch_workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
+
+
+def launch_shapefile_workflows(aois, name, pansharpen=False, dra=False):
+    workflows = []
+    for i, row in aois.iterrows():
+        w = launch_workflow(row.cat_id, name, pansharpen=pansharpen, dra=dra, wkt=row.geometry.wkt)
+        workflows.append(w)
+
+    return workflows
 
 
 def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, wkt=None):
@@ -167,6 +182,16 @@ def check_workflow_cli():
             pprint(gbdx.workflow.get(wid))
         else:
             pprint(gbdx.workflow.get(wid)['state'])
+
+
+def get_all_workflows():
+    return gbdx.gbdx_connection.get('https://geobigdata.io/workflows/v1/workflows').json().get('Workflows')
+
+
+def cancel_workflows(wids):
+    for wid in wids:
+        gbdx.workflow.cancel(wid)
+
 
 class FetchGBDxResults:
 
