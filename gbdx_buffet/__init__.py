@@ -97,7 +97,6 @@ def workflow_cli():
         print("Reading cat ids from shapefile")
         if 'CATALOGID' in args.shapefile.columns:
             args.shapefile.rename(columns={'CATALOGID': 'cat_id'}, inplace=True)
-            catalog_ids = list(args.shapefile.CATALOGID.values)
         elif 'cat_id' in args.shapefile.columns:
             pass
         elif 'catid' in args.shapefile.columns:
@@ -108,6 +107,7 @@ def workflow_cli():
             raise Exception("CATALOGID not in shapefile")
 
         launch_shapefile_workflows(args.shapefile, args.name, pansharpen=args.pansharpen, dra=args.dra)
+        return
 
     elif args.catids:
         print("Reading cat ids from command line")
