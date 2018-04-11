@@ -9,7 +9,7 @@ setup(
     author_email='mla@mla.im',
     license='Apache',
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
-    install_requires=['sh', 'regex'],
+    install_requires=['sh', 'regex', 'tqdm'],
     python_requires='>=3',
     entry_points={
         'console_scripts': [
