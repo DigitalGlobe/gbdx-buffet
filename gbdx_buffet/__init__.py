@@ -87,6 +87,7 @@ def workflow_cli():
     parser.add_argument("-w", "--wkt",
                         help="WKT indicating where to clip images "
                              "e.g. POLYGON ((109.79359281016 18.3095645755021, ....))", default="")
+    parser.add_argument("-noo", "--noortho", help="Disable ORTHO", dest='ortho', action='store_false')
     parser.add_argument("-noa", "--noacomp", help="Disable ACOMP", dest='acomp', action='store_false')
     parser.add_argument("-p", "--pansharpen", help="Enable 4band pansharpening", action='store_true')
     parser.add_argument("-d", "--dra", help="Enable dynamic range adjustment (DRA)", action='store_true')
@@ -118,30 +119,35 @@ def workflow_cli():
     else:
         raise Exception("You must provide catalog ids using --shapefile or --catids or --file")
 
-    launch_workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, acomp=args.acomp, wkt=args.wkt)
+    launch_workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, acomp=args.acomp, wkt=args.wkt, ortho=args.ortho)
 
 
-def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, acomp=True, wkt=None):
+def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, acomp=True, wkt=None, ortho=True):
     # print("Catalog IDs ", catalog_ids)
     # print(orders)
-    return [launch_workflow(o['acquisition_id'], name, pansharpen=pansharpen, dra=dra, acomp=acomp, wkt=wkt)
+    return [launch_workflow(o['acquisition_id'], name, pansharpen=pansharpen, dra=dra, acomp=acomp, wkt=wkt, ortho=ortho)
             for o in gbdx.ordering.location(catalog_ids)['acquisitions']]
 
 
-def launch_workflow(cat_id, name, pansharpen=False, dra=False, acomp=True, wkt=None):
+def launch_workflow(cat_id, name, pansharpen=False, dra=False, acomp=True, wkt=None, ortho=True):
     order = gbdx.Task("Auto_Ordering", cat_id=cat_id)
     order.impersonation_allowed = True
 
-    aop = gbdx.Task('AOP_Strip_Processor',
-                    data=order.outputs.s3_location.value,
-                    enable_pansharpen=pansharpen,
-                    enable_acomp=acomp,
-                    enable_dra=dra,
-                    )
+    if ortho:
+        aop = gbdx.Task('AOP_Strip_Processor',
+                        data=order.outputs.s3_location.value,
+                        enable_pansharpen=pansharpen,
+                        enable_acomp=acomp,
+                        enable_dra=dra,
+                        )
 
-    tasks = [order, aop]
+        tasks = [order, aop]
 
-    output = aop.outputs.data
+        output = aop.outputs.data
+    else:
+        tasks = [order]
+        output = order.outputs.s3_location.value
+
     if wkt:
         tasks.append(Task('RasterClip_Extents', raster=tasks[-1].outputs.data.value, wkt=wkt))
         print(tasks[-1])
