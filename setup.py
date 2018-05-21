@@ -16,9 +16,6 @@ setup(
         'tqdm',
         'gbdxtools'
     ],
-    dependency_links = [
-        'git+git://github.com/DigitalGlobe/gbdxtools#egg=gbdxtools'
-    ],
     python_requires='>=3',
     entry_points={
         'console_scripts': [
