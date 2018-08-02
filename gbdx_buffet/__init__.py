@@ -14,6 +14,7 @@ from gbdxtools.workflow import Workflow as WorkflowAPI
 from shapely.geometry import shape
 from tqdm import tqdm
 
+
 try:
     gbdx = Interface()
 except Exception:
@@ -86,6 +87,8 @@ def workflow_cli():
     parser.add_argument("-w", "--wkt",
                         help="WKT indicating where to clip images "
                              "e.g. POLYGON ((109.79359281016 18.3095645755021, ....))", default="")
+    parser.add_argument("-noo", "--noortho", help="Disable ORTHO and get the 1b", dest='ortho', action='store_false')
+    parser.add_argument("-noa", "--noacomp", help="Disable ACOMP", dest='acomp', action='store_false')
     parser.add_argument("-p", "--pansharpen", help="Enable 4band pansharpening", action='store_true')
     parser.add_argument("-d", "--dra", help="Enable dynamic range adjustment (DRA)", action='store_true')
     parser.add_argument("-n", "--name", help="Name the directory to save images on S3", type=str,
@@ -116,33 +119,47 @@ def workflow_cli():
     else:
         raise Exception("You must provide catalog ids using --shapefile or --catids or --file")
 
-    launch_workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, wkt=args.wkt)
+    launch_workflows(catalog_ids, args.name, pansharpen=args.pansharpen, dra=args.dra, acomp=args.acomp, wkt=args.wkt, ortho=args.ortho)
 
 
-def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, wkt=None):
-    print("Catalog IDs ", catalog_ids)
+def launch_workflows(catalog_ids, name=datetime.now().isoformat().split('T')[0], pansharpen=False, dra=False, acomp=True, wkt=None, ortho=True):
+
     orders = gbdx.ordering.location(catalog_ids)
     print(orders)
-
     for o in orders['acquisitions']:
-        w = launch_workflow(o['acquisition_id'], name, pansharpen=pansharpen, dra=dra, wkt=wkt)
+        w = launch_workflow(o['acquisition_id'], name, pansharpen=pansharpen, dra=dra, acomp=acomp, wkt=wkt, ortho=ortho)
         print(w.id, w.definition, w.status)
 
 
-def launch_workflow(cat_id, name, pansharpen=False, dra=False, wkt=None):
+def launch_workflow(cat_id, name, pansharpen=False, dra=False, acomp=True, wkt=None, ortho=True):
     order = gbdx.Task("Auto_Ordering", cat_id=cat_id)
     order.impersonation_allowed = True
 
-    aop = gbdx.Task('AOP_Strip_Processor',
-                    data=order.outputs.s3_location.value,
-                    enable_pansharpen=pansharpen,
-                    enable_acomp=True,
-                    enable_dra=dra,
-                    )
+    if ortho:
+        aop = gbdx.Task('AOP_Strip_Processor',
+                        data=order.outputs.s3_location.value,
+                        enable_pansharpen=pansharpen,
+                        enable_acomp=acomp,
+                        enable_dra=dra,
+                        )
 
-    tasks = [order, aop]
+        tasks = [order, aop]
 
-    output = aop.outputs.data
+        output = aop.outputs.data
+    else:
+        output = order.outputs.s3_location.value
+        aws = gbdx.s3._load_info()
+        save_task = gbdx.Task('SaveToS3')
+        save_task.inputs.data = output
+        save_task.inputs.destination = "s3://{}/{}/{}/".format(aws['bucket'], aws['prefix'], cat_id)
+        save_task.inputs.access_key_id = aws['S3_access_key']
+        save_task.inputs.secret_key = aws['S3_secret_key']
+        save_task.inputs.session_token = aws['S3_session_token']
+
+        workflow = Workflow([order, save_task])
+        workflow.execute()
+        return workflow
+
     if wkt:
         tasks.append(Task('RasterClip_Extents', raster=tasks[-1].outputs.data.value, wkt=wkt))
         print(tasks[-1])
@@ -156,9 +173,9 @@ def launch_workflow(cat_id, name, pansharpen=False, dra=False, wkt=None):
 def check_workflow_cli():
     parser = argparse.ArgumentParser(description="""Launch a workflow to order images from GBDX""")
     parser.add_argument("workflow_ids", help="Comma list of Worflow IDS to be read "
-                                               "(4756293649288340653,4756293656541265420,"
-                                               "4756293664199537883)", type=lambda s: s.split(','))
-    parser.add_argument("-v","--verbose", help="verbose, otherwise just get state", action='store_true')
+                                             "(4756293649288340653,4756293656541265420,"
+                                             "4756293664199537883)", type=lambda s: s.split(','))
+    parser.add_argument("-v", "--verbose", help="verbose, otherwise just get state", action='store_true')
     args = parser.parse_args()
 
     for wid in args.workflow_ids:
@@ -167,9 +184,11 @@ def check_workflow_cli():
         else:
             pprint(gbdx.workflow.get(wid)['state'])
 
+
 class FetchGBDxResults:
 
-    def __init__(self, in_aoi, out_result="", start_date="*", end_date="now", vector_index="vector-*", item_type="all", count=200000):
+    def __init__(self, in_aoi, out_result="", start_date="*", end_date="now", vector_index="vector-*", item_type="all",
+                 count=200000):
         self.inAoi = in_aoi
         self.outResult = out_result
         self.vectorIndex = vector_index
@@ -177,7 +196,6 @@ class FetchGBDxResults:
         self.startDate = start_date
         self.endDate = end_date
         self.maxCount = count
-
 
     def merge_geojson(self, in_files):
         out_json = dict(type='FeatureCollection', features=[])
@@ -237,6 +255,7 @@ class FetchGBDxResults:
                     output.write(json.dumps(merged_geojson))
             else:
                 return merged_geojson
+
 
 def fetch_results_cli():
     parser = argparse.ArgumentParser()
